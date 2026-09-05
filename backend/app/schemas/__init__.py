@@ -24,8 +24,12 @@ class CeremonyBase(BaseModel):
     status: str = Field("created", max_length=64)
 
 
-class CeremonyCreate(CeremonyBase):
-    pass
+class CeremonyCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
+
+class CeremonyStatusUpdate(BaseModel):
+    status: str = Field(..., min_length=1, max_length=64)
 
 
 class CeremonyResponse(ORMBase):
@@ -41,11 +45,10 @@ class CeremonyResponse(ORMBase):
 class ParticipantBase(BaseModel):
     ceremony_id: int
     name: str = Field(..., min_length=1, max_length=255)
-    status: str = Field("registered", max_length=64)
+    status: str = Field("active", max_length=64)
 
 
 class ParticipantCreate(BaseModel):
-    ceremony_id: int
     name: str = Field(..., min_length=1, max_length=255)
 
 
@@ -63,12 +66,11 @@ class ParticipantResponse(ORMBase):
 class CeremonyAttemptBase(BaseModel):
     ceremony_id: int
     attempt_number: int = Field(..., ge=1)
-    status: str = Field("pending", max_length=64)
+    status: str = Field("active", max_length=64)
 
 
 class CeremonyAttemptCreate(BaseModel):
-    ceremony_id: int
-    attempt_number: int = Field(..., ge=1)
+    pass
 
 
 class CeremonyAttemptResponse(ORMBase):
@@ -87,14 +89,13 @@ class ContributionBase(BaseModel):
     attempt_id: int
     participant_id: int
     contribution_hash: str = Field(..., min_length=1, max_length=128)
-    status: str = Field("submitted", max_length=64)
+    contribution_data: str = Field(..., min_length=1)
+    status: str = Field("accepted", max_length=64)
 
 
 class ContributionCreate(BaseModel):
-    ceremony_id: int
-    attempt_id: int
     participant_id: int
-    contribution_hash: str = Field(..., min_length=1, max_length=128)
+    contribution_data: str = Field(..., min_length=1)
 
 
 class ContributionResponse(ORMBase):
@@ -103,6 +104,7 @@ class ContributionResponse(ORMBase):
     attempt_id: int
     participant_id: int
     contribution_hash: str
+    contribution_data: str
     status: str
     created_at: datetime
 

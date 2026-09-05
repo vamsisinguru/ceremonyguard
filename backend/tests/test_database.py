@@ -71,6 +71,7 @@ def test_can_persist_foundation_entities(client: TestClient) -> None:
         attempt_id=attempt.id,
         participant_id=participant.id,
         contribution_hash="abc123",
+        contribution_data="sample-data",
     )
     db.add(contribution)
 

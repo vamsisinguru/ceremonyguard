@@ -17,7 +17,7 @@ class Ceremony(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(64), nullable=False, default="created")
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.current_timestamp()
     )
@@ -46,7 +46,7 @@ class Participant(Base):
         Integer, ForeignKey("ceremonies.id", ondelete="CASCADE"), nullable=False
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(64), nullable=False, default="registered")
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.current_timestamp()
     )
@@ -74,7 +74,7 @@ class CeremonyAttempt(Base):
         Integer, ForeignKey("ceremonies.id", ondelete="CASCADE"), nullable=False
     )
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="active")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.current_timestamp()
     )
@@ -101,7 +101,8 @@ class Contribution(Base):
         Integer, ForeignKey("participants.id", ondelete="CASCADE"), nullable=False
     )
     contribution_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    status: Mapped[str] = mapped_column(String(64), nullable=False, default="submitted")
+    contribution_data: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="accepted")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.current_timestamp()
     )

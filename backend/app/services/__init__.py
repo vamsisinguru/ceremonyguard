@@ -1,6 +1,10 @@
 """Service layer for CeremonyGuard.
 
-Services encapsulate business logic and keep route handlers thin. Phase 1
-only provides the package skeleton; concrete services are added in later
-phases alongside the lifecycle, contribution, and recovery logic.
+Phase 2 adds concrete services for ceremonies, participants, attempts,
+contributions, and audit events. Each service encapsulates business logic
+and keeps route handlers thin.
 """
+
+from app.services import audit, attempts, ceremonies, contributions, participants
+
+__all__ = ["audit", "attempts", "ceremonies", "contributions", "participants"]
