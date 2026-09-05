@@ -2,7 +2,7 @@
 
 FastAPI backend for the CeremonyGuard multi-party ceremony consistency system.
 
-## Current Scope (Phases 1, 2 & 3)
+## Current Scope (Phases 1, 2, 3 & 4)
 
 ### Phase 1 — Foundation
 - FastAPI application with `lifespan` startup that initializes the SQLite database.
@@ -36,8 +36,25 @@ FastAPI backend for the CeremonyGuard multi-party ceremony consistency system.
   recorded for every duplicate/conflict event.
 - **Audit API**: `GET /ceremonies/{id}/audit` exposes the audit trail.
 
-Phase 4 recovery and final cryptographic verification are **not** implemented
-yet.
+### Phase 4 — Recovery & Final Verification
+- **Recovery workflow**: start recovery for an incomplete ceremony, creating a
+  new attempt and marking the ceremony `recovering`. Existing canonical
+  contributions are never modified.
+- **Participant resume**: missing participants can resume their contribution
+  during recovery. Duplicate/conflict rules continue to apply.
+- **Recovery status**: check which participants are complete vs incomplete.
+- **Ceremony completion check**: a ceremony is `ready` when every participant
+  has exactly one accepted canonical contribution.
+- **Final result generation**: deterministic HMAC-SHA256 digest over the
+  canonical contribution set (simulated, not real threshold cryptography).
+- **Final result verification**: recomputes the digest and compares against
+  the stored value. Fails if any canonical contribution is modified, removed,
+  or replaced.
+- **Traceability**: verification response shows ceremony ID, participant
+  IDs/names, canonical contribution IDs, hashes, attempt IDs, and digests.
+- **Audit events**: `CEREMONY_RECOVERY_STARTED`, `PARTICIPANT_RECOVERY_RESUMED`,
+  `FINAL_RESULT_GENERATED`, `FINAL_RESULT_VERIFIED`,
+  `FINAL_RESULT_VERIFICATION_FAILED`.
 
 ## Layout
 
@@ -50,12 +67,14 @@ backend/
 │   │   ├── attempts.py
 │   │   ├── contributions.py
 │   │   ├── audit.py
+│   │   ├── recovery.py
+│   │   ├── verification.py
 │   │   └── health.py
 │   ├── core/         # Config + database engine/session
 │   ├── crypto/       # Reserved for later phases
-│   ├── models/       # SQLAlchemy ORM models
+│   ├── models/       # SQLAlchemy ORM models (incl. CeremonyResult)
 │   ├── schemas/      # Pydantic schemas
-│   ├── services/     # Business logic (ceremonies, participants, attempts, contributions, audit)
+│   ├── services/     # Business logic (ceremonies, participants, attempts, contributions, audit, recovery, verification)
 │   └── main.py       # FastAPI app entrypoint
 ├── tests/            # pytest tests
 └── requirements.txt
@@ -145,12 +164,43 @@ Audit events are created automatically by the service layer for:
 - `contribution_submitted`
 - `CONTRIBUTION_DUPLICATE` (Phase 3)
 - `CONTRIBUTION_CONFLICT` (Phase 3)
+- `CEREMONY_RECOVERY_STARTED` (Phase 4)
+- `PARTICIPANT_RECOVERY_RESUMED` (Phase 4)
+- `FINAL_RESULT_GENERATED` (Phase 4)
+- `FINAL_RESULT_VERIFIED` (Phase 4)
+- `FINAL_RESULT_VERIFICATION_FAILED` (Phase 4)
 
 A public read-only audit endpoint is available:
 
 | Method | Path                              | Description                      |
 |--------|-----------------------------------|----------------------------------|
 | GET    | `/ceremonies/{ceremony_id}/audit` | List audit events for a ceremony |
+
+### Recovery (Phase 4)
+| Method | Path                                        | Description                              |
+|--------|---------------------------------------------|------------------------------------------|
+| POST   | `/ceremonies/{ceremony_id}/recovery/start`  | Start recovery for an incomplete ceremony|
+| GET    | `/ceremonies/{ceremony_id}/recovery/status` | Check recovery status                    |
+| POST   | `/ceremonies/{ceremony_id}/recovery/resume` | Resume a participant contribution        |
+
+The resume endpoint returns a `RecoveryResumeResponse` with the submission
+status (`accepted`/`duplicate`/`conflict`) and the updated recovery status.
+HTTP status codes match the contribution submit endpoint (201/200/409).
+
+### Final Verification (Phase 4)
+| Method | Path                                        | Description                              |
+|--------|---------------------------------------------|------------------------------------------|
+| POST   | `/ceremonies/{ceremony_id}/finalize`        | Generate the final result                |
+| GET    | `/ceremonies/{ceremony_id}/verification`    | Get final verification status            |
+| POST   | `/ceremonies/{ceremony_id}/verify`          | Verify the final result                  |
+
+The verification response (`FinalResultResponse`) includes:
+- `ready`: whether all participants have canonical contributions
+- `generated`: whether the final result has been generated
+- `verified`: whether verification succeeded
+- `verification_status`: `verified` | `verification_failed` | `not_generated` | `not_ready`
+- `final_digest`, `contribution_digest`, `participant_count`
+- `canonical_contributions`: list with participant IDs/names, contribution IDs, hashes, attempt IDs
 
 ## Example API Workflow
 
@@ -196,6 +246,34 @@ curl -X PATCH http://127.0.0.1:8000/ceremonies/1/status \
   -H 'Content-Type: application/json' -d '{"status":"completed"}'
 ```
 
+### Phase 4 — Recovery & Verification
+
+```bash
+# 1. Add a third participant (Charlie) who fails to submit
+curl -X POST http://127.0.0.1:8000/ceremonies/1/participants \
+  -H 'Content-Type: application/json' -d '{"name":"Charlie"}'
+
+# 2. Check recovery status -> ready: false (Charlie missing)
+curl http://127.0.0.1:8000/ceremonies/1/recovery/status
+
+# 3. Start recovery -> new attempt created, ceremony marked "recovering"
+curl -X POST http://127.0.0.1:8000/ceremonies/1/recovery/start
+
+# 4. Charlie resumes -> accepted (201)
+curl -X POST http://127.0.0.1:8000/ceremonies/1/recovery/resume \
+  -H 'Content-Type: application/json' \
+  -d '{"participant_id":3,"contribution_data":"charlie-share"}'
+
+# 5. Finalize -> final result generated and verified
+curl -X POST http://127.0.0.1:8000/ceremonies/1/finalize
+
+# 6. Verify again
+curl -X POST http://127.0.0.1:8000/ceremonies/1/verify
+
+# 7. Get verification status
+curl http://127.0.0.1:8000/ceremonies/1/verification
+```
+
 ## Tests
 
 ```bash
@@ -205,7 +283,8 @@ pytest -v
 ```
 
 Phase 1 tests (app startup, health, database), Phase 2 tests (ceremonies,
-participants, attempts, contributions, audit events), and Phase 3 tests
+participants, attempts, contributions, audit events), Phase 3 tests
 (duplicate detection, conflict detection, ceremony isolation, cross-attempt
-safety, the main demo scenario) all run against an
+safety, the main demo scenario), and Phase 4 tests (recovery, final
+verification, audit events, the full recovery demo) all run against an
 in-memory SQLite database.

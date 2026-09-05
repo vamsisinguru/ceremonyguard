@@ -150,3 +150,28 @@ class AuditEvent(Base):
     participant: Mapped["Participant | None"] = relationship(
         back_populates="audit_events"
     )
+
+
+class CeremonyResult(Base):
+    """The generated final result for a completed ceremony (Phase 4).
+
+    Stores the cryptographic digest of the canonical contribution set at
+    finalization time so that subsequent verification can detect tampering,
+    removal, or replacement of canonical contributions.
+    """
+
+    __tablename__ = "ceremony_results"
+    __table_args__ = (Index("ix_ceremony_results_ceremony", "ceremony_id", unique=True),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ceremony_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("ceremonies.id", ondelete="CASCADE"), nullable=False
+    )
+    final_digest: Mapped[str] = mapped_column(String(128), nullable=False)
+    contribution_digest: Mapped[str] = mapped_column(String(128), nullable=False)
+    participant_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.current_timestamp()
+    )
+
+    ceremony: Mapped["Ceremony"] = relationship()

@@ -60,4 +60,26 @@ export const api = {
   // Audit
   listAuditEvents: (ceremonyId) =>
     request(`/ceremonies/${ceremonyId}/audit`),
+
+  // Phase 4 — Recovery
+  getRecoveryStatus: (ceremonyId) =>
+    request(`/ceremonies/${ceremonyId}/recovery/status`),
+  startRecovery: (ceremonyId) =>
+    request(`/ceremonies/${ceremonyId}/recovery/start`, { method: "POST" }),
+  resumeParticipant: (ceremonyId, participantId, data) =>
+    request(`/ceremonies/${ceremonyId}/recovery/resume`, {
+      method: "POST",
+      body: JSON.stringify({
+        participant_id: participantId,
+        contribution_data: data,
+      }),
+    }),
+
+  // Phase 4 — Final Verification
+  getVerification: (ceremonyId) =>
+    request(`/ceremonies/${ceremonyId}/verification`),
+  finalizeCeremony: (ceremonyId) =>
+    request(`/ceremonies/${ceremonyId}/finalize`, { method: "POST" }),
+  verifyCeremony: (ceremonyId) =>
+    request(`/ceremonies/${ceremonyId}/verify`, { method: "POST" }),
 };

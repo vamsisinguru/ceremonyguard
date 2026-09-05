@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "./api.js";
 import StatusBadge from "./StatusBadge.jsx";
 import ContributionForm from "./ContributionForm.jsx";
+import RecoverySection from "./RecoverySection.jsx";
+import FinalVerificationSection from "./FinalVerificationSection.jsx";
 
 export default function App() {
   const [health, setHealth] = useState(null);
@@ -11,6 +13,8 @@ export default function App() {
   const [attempts, setAttempts] = useState([]);
   const [contributions, setContributions] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]);
+  const [recoveryStatus, setRecoveryStatus] = useState(null);
+  const [verification, setVerification] = useState(null);
   const [newCeremonyName, setNewCeremonyName] = useState("");
   const [newParticipantName, setNewParticipantName] = useState("");
 
@@ -33,16 +37,20 @@ export default function App() {
 
   // ---- Load ceremony detail ----
   const loadCeremonyDetail = useCallback(async (id) => {
-    const [pRes, aRes, cRes, auditRes] = await Promise.all([
+    const [pRes, aRes, cRes, auditRes, recRes, verRes] = await Promise.all([
       api.listParticipants(id),
       api.listAttempts(id),
       api.listContributions(id),
       api.listAuditEvents(id),
+      api.getRecoveryStatus(id),
+      api.getVerification(id),
     ]);
     setParticipants(pRes.status === 200 ? pRes.body : []);
     setAttempts(aRes.status === 200 ? aRes.body : []);
     setContributions(cRes.status === 200 ? cRes.body : []);
     setAuditEvents(auditRes.status === 200 ? auditRes.body : []);
+    setRecoveryStatus(recRes.status === 200 ? recRes.body : null);
+    setVerification(verRes.status === 200 ? verRes.body : null);
   }, []);
 
   useEffect(() => {
@@ -53,6 +61,8 @@ export default function App() {
       setAttempts([]);
       setContributions([]);
       setAuditEvents([]);
+      setRecoveryStatus(null);
+      setVerification(null);
     }
   }, [selectedCeremony, loadCeremonyDetail]);
 
@@ -310,6 +320,20 @@ export default function App() {
               </div>
             </section>
 
+            {/* Phase 4 — Recovery */}
+            <RecoverySection
+              ceremonyId={selectedCeremony.id}
+              recoveryStatus={recoveryStatus}
+              onUpdated={refresh}
+            />
+
+            {/* Phase 4 — Final Verification */}
+            <FinalVerificationSection
+              ceremonyId={selectedCeremony.id}
+              verification={verification}
+              onUpdated={refresh}
+            />
+
             {/* Audit trail */}
             <section className="rounded-lg border border-slate-800 bg-slate-900 p-5">
               <h2 className="text-base font-semibold text-slate-200">
@@ -375,7 +399,7 @@ export default function App() {
       </main>
 
       <footer className="border-t border-slate-800 px-8 py-4 text-sm text-slate-500">
-        Phase 3 &middot; Duplicate &amp; Conflict Detection
+        Phase 4 &middot; Recovery &amp; Final Verification
       </footer>
     </div>
   );

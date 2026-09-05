@@ -25,16 +25,17 @@ CeremonyGuard aims to provide:
 - Recovery from failures without compromising the ceremony.
 - Verification of the final cryptographic result.
 
-## Phase 1 Technology Stack
+## Technology Stack
 
-| Layer    | Technology                |
-|----------|---------------------------|
-| Backend  | Python, FastAPI, Pydantic |
-| Database | SQLAlchemy + SQLite       |
-| Frontend | React, Vite, Tailwind CSS |
-| Testing  | pytest, pytest-asyncio    |
+| Layer    | Technology                          |
+|----------|-------------------------------------|
+| Backend  | Python, FastAPI, Pydantic            |
+| Database | SQLAlchemy + SQLite                  |
+| Crypto   | `cryptography` (HMAC-SHA256)         |
+| Frontend | React, Vite, Tailwind CSS            |
+| Testing  | pytest, pytest-asyncio, httpx        |
 
-## Current Implementation Status (Phase 3)
+## Current Implementation Status (Phase 4)
 
 ### Phase 1 — Foundation
 - Backend project structure with FastAPI application entrypoint.
@@ -83,6 +84,40 @@ CeremonyGuard aims to provide:
 Phase 4 recovery and final cryptographic verification are **not** implemented
 yet.
 
+### Phase 4 — Recovery & Final Verification
+- **Recovery workflow**: when a ceremony is incomplete (some participants
+  failed to submit), recovery can be started. A new attempt is created and
+  the ceremony is marked `recovering`. Missing participants can resume their
+  contributions without forcing already-complete participants to restart.
+- **Recovery preserves canonical contributions**: existing accepted
+  contributions are never modified or removed during recovery.
+- **Recovery preserves ceremony identity**: the original ceremony ID is kept.
+- **Recovery isolation**: a participant from a different ceremony cannot
+  resume into this ceremony's recovery.
+- **Duplicate/conflict rules apply during recovery**: resubmitting identical
+  data is `duplicate`; different data is `conflict`. The original canonical
+  contribution is always retained.
+- **Ceremony completion check**: a ceremony is `ready` when every participant
+  has exactly one accepted canonical contribution. Duplicate/conflict records
+  do not count.
+- **Final result generation**: when ready, the ceremony can be finalized.
+  The final result is a deterministic HMAC-SHA256 digest computed over the
+  set of canonical contributions. This is a **simulated** educational
+  ceremony — not a real threshold signature.
+- **Final result verification**: the stored digest is compared against a
+  freshly computed digest from the current canonical contributions.
+  Verification fails if any canonical contribution is modified, removed, or
+  replaced.
+- **Traceability**: the verification response shows ceremony ID, participant
+  IDs/names, canonical contribution IDs, contribution hashes, attempt IDs,
+  the final digest, and verification status.
+- **Audit events**: `CEREMONY_RECOVERY_STARTED`, `PARTICIPANT_RECOVERY_RESUMED`,
+  `FINAL_RESULT_GENERATED`, `FINAL_RESULT_VERIFIED`,
+  `FINAL_RESULT_VERIFICATION_FAILED`.
+- **Frontend dashboard**: Recovery section (status, incomplete participants,
+  resume form) and Final Verification section (readiness, canonical
+  contributions, finalize/verify actions, verification result).
+
 ## Contribution Statuses
 
 | Status      | Meaning                                                        | HTTP |
@@ -91,7 +126,37 @@ yet.
 | `duplicate` | Retry with identical data; original retained.                  | 200  |
 | `conflict`  | Retry with different data; original retained, new one rejected.| 409  |
 
+## Verification Statuses
+
+| Status               | Meaning                                                       |
+|----------------------|---------------------------------------------------------------|
+| `verified`           | Final result generated and canonical set unchanged.           |
+| `verification_failed`| Canonical contribution set has changed since finalization.    |
+| `not_generated`      | Ceremony is ready but final result not yet generated.         |
+| `not_ready`          | Not all participants have canonical contributions.            |
+
+## Simulated Cryptographic Model
+
+This is a **simulated educational ceremony**, not production threshold
+cryptography. The final result is computed as follows:
+
+1. Collect all canonical (`accepted`) contributions, ordered by participant ID.
+2. Compute a `contribution_digest` = SHA-256 of the ordered contribution hashes.
+3. Compute a `final_digest` = HMAC-SHA256 of the contribution set using a
+   ceremony-derived key.
+4. Persist both digests in `CeremonyResult`.
+
+Verification recomputes both digests from the current canonical contributions
+and compares them against the stored values. If they match, the canonical
+contribution set is unchanged. If they differ, a contribution was modified,
+removed, or replaced.
+
+**Limitations**: this does not implement a real threshold signature scheme,
+does not use participant private keys, and is not suitable for production use.
+
 ## Example Demonstration Flow
+
+### Phase 3 — Duplicate & Conflict
 
 1. Create a ceremony.
 2. Add participants A, B, C.
@@ -104,11 +169,23 @@ yet.
 9. A `CONTRIBUTION_CONFLICT` audit event is recorded.
 10. The ceremony can continue.
 
+### Phase 4 — Recovery & Verification
+
+1. Create a ceremony with participants A, B, C.
+2. A and B submit accepted contributions. C fails (network failure).
+3. `GET /ceremonies/{id}/recovery/status` → `ready: false`, C is incomplete.
+4. `POST /ceremonies/{id}/recovery/start` → new recovery attempt created,
+   ceremony marked `recovering`.
+5. C resumes via `POST /ceremonies/{id}/recovery/resume` → **accepted**.
+6. `GET /ceremonies/{id}/recovery/status` → `ready: true`.
+7. `POST /ceremonies/{id}/finalize` → final result generated and verified.
+8. `POST /ceremonies/{id}/verify` → verification succeeds.
+9. Audit trail shows recovery and verification events.
+
 ## Planned Future Phases
 
-- **Phase 4:** Conflict resolution and ceremony consistency enforcement.
-- **Phase 5:** Recovery from failures and resumable ceremonies.
-- **Phase 6:** Final cryptographic result aggregation and verification.
+- **Phase 5:** Resumable ceremonies with persistent recovery state.
+- **Phase 6:** Real threshold cryptographic result aggregation.
 - **Phase 7:** Full dashboard UI and audit trail visualization.
 
 ## Repository

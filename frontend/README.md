@@ -2,7 +2,7 @@
 
 React + Vite + Tailwind CSS frontend for CeremonyGuard.
 
-## Current Scope (Phases 1, 2 & 3)
+## Current Scope (Phases 1, 2, 3 & 4)
 
 ### Phase 1 — Foundation
 - Vite + React project scaffold.
@@ -17,15 +17,24 @@ React + Vite + Tailwind CSS frontend for CeremonyGuard.
 - Contribution submission form with live status feedback.
 - Visual distinction between `accepted` (green), `duplicate` (amber), and
   `conflict` (red) contribution statuses.
-- Clear banner messages for duplicate and conflict outcomes:
-  - "Duplicate contribution detected. The original contribution was retained."
-  - "Conflict detected. A different contribution was submitted by this
-    participant. The original contribution was retained."
+- Clear banner messages for duplicate and conflict outcomes.
 - Contributions table showing each contribution's status badge.
 - Audit trail table showing participant, event type, message, and timestamp.
 
-The full dashboard, recovery UI, and final cryptographic result visualization
-are deferred to later phases.
+### Phase 4 — Recovery & Final Verification
+- **Recovery section**: shows ceremony recovery status (`ready`/`recovering`/
+  `incomplete`), incomplete and complete participants, a "Start Recovery"
+  button, and a resume form for missing participants to submit their
+  contribution during recovery.
+- **Final Verification section**: shows whether the ceremony is ready, the
+  list of canonical contributions (participant, contribution ID, attempt ID,
+  hash), "Finalize" and "Verify" buttons, and the verification result
+  (`verified`/`verification_failed`/`not_generated`/`not_ready`) with final
+  and contribution digests.
+- Status badges for Phase 4 states: `READY`, `RECOVERING`, `INCOMPLETE`,
+  `VERIFIED`, `VERIFICATION_FAILED`.
+
+The existing Phase 3 contribution and audit UI continues to work unchanged.
 
 ## Running
 

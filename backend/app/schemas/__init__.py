@@ -158,3 +158,91 @@ class HealthResponse(BaseModel):
     status: str
     app: str
     environment: str
+
+
+# --------------------------------------------------------------------------- #
+# Phase 4 — Recovery
+# --------------------------------------------------------------------------- #
+class ParticipantContributionStatus(BaseModel):
+    """Per-participant contribution status within a ceremony."""
+
+    participant_id: int
+    participant_name: str
+    has_canonical: bool
+    contribution_id: int | None = None
+    contribution_hash: str | None = None
+    attempt_id: int | None = None
+
+
+class RecoveryStatusResponse(BaseModel):
+    """Recovery status for a ceremony."""
+
+    ceremony_id: int
+    ceremony_name: str
+    ceremony_status: str
+    ready: bool
+    total_participants: int
+    participants_with_contribution: int
+    incomplete_participants: list[ParticipantContributionStatus]
+    complete_participants: list[ParticipantContributionStatus]
+    latest_attempt_id: int | None = None
+
+
+class RecoveryStartResponse(BaseModel):
+    """Response when starting recovery for a ceremony."""
+
+    ceremony_id: int
+    ceremony_status: str
+    recovery_attempt_id: int
+    message: str
+    recovery_status: RecoveryStatusResponse
+
+
+class RecoveryResumeRequest(BaseModel):
+    """Request to resume a participant's contribution during recovery."""
+
+    participant_id: int
+    contribution_data: str = Field(..., min_length=1)
+
+
+class RecoveryResumeResponse(BaseModel):
+    """Response when a participant resumes during recovery."""
+
+    ceremony_id: int
+    participant_id: int
+    submission_status: str
+    message: str
+    contribution: ContributionResponse | None = None
+    submitted_hash: str
+    recovery_status: RecoveryStatusResponse
+
+
+# --------------------------------------------------------------------------- #
+# Phase 4 — Final Verification
+# --------------------------------------------------------------------------- #
+class CanonicalContributionInfo(BaseModel):
+    """Traceable info for a canonical contribution used in the final result."""
+
+    contribution_id: int
+    participant_id: int
+    participant_name: str
+    attempt_id: int
+    contribution_hash: str
+
+
+class FinalResultResponse(BaseModel):
+    """Final verification result for a ceremony."""
+
+    ceremony_id: int
+    ceremony_name: str
+    ceremony_status: str
+    ready: bool
+    generated: bool
+    verified: bool
+    verification_status: str  # verified | verification_failed | not_generated | not_ready
+    final_digest: str | None = None
+    contribution_digest: str | None = None
+    participant_count: int | None = None
+    canonical_contributions: list[CanonicalContributionInfo]
+    message: str
+    created_at: datetime | None = None
