@@ -1,0 +1,1 @@
+"""CeremonyGuard application package."""
