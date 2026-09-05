@@ -35,6 +35,50 @@ CeremonyGuard aims to provide:
 | Frontend | React, Vite, Tailwind CSS            |
 | Testing  | pytest, pytest-asyncio, httpx        |
 
+## Running the Complete Application
+
+The React frontend is built and served by the FastAPI backend, so the entire
+application runs from **one server** on **http://127.0.0.1:8000**.
+
+### One-terminal setup
+
+```bash
+# 1. Build the frontend
+cd frontend
+npm install
+npm run build          # generates frontend/dist/
+
+# 2. Run the backend (serves both API and frontend)
+cd ../backend
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+Then open **http://127.0.0.1:8000** in your browser.
+
+| URL                          | What you get                      |
+|------------------------------|-----------------------------------|
+| http://127.0.0.1:8000/       | CeremonyGuard React dashboard     |
+| http://127.0.0.1:8000/docs   | FastAPI Swagger UI                |
+| http://127.0.0.1:8000/health | Health check API                  |
+| http://127.0.0.1:8000/ceremonies | Ceremonies API (and all other APIs) |
+
+### Development mode (optional)
+
+If you want hot-reload for frontend development, run the Vite dev server
+separately:
+
+```bash
+# Terminal 1 — backend
+cd backend
+source .venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+
+# Terminal 2 — frontend dev server
+cd frontend
+npm run dev          # http://127.0.0.1:5173 (proxies API calls to port 8000)
+```
+
 ## Current Implementation Status (Phase 4)
 
 ### Phase 1 — Foundation

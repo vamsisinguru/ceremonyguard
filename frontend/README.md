@@ -44,13 +44,21 @@ npm install
 npm run dev
 ```
 
-The dev server runs at http://127.0.0.1:5173 and proxies `/api/*` requests to
-the backend at http://127.0.0.1:8000 (see `vite.config.js`). Start the backend
+The dev server runs at http://127.0.0.1:5173 and proxies API requests to the
+backend at http://127.0.0.1:8000 (see `vite.config.js`). Start the backend
 first for full functionality.
 
-## Build
+## Build (for combined FastAPI serving)
 
 ```bash
 npm run build      # production build to dist/
+```
+
+After building, run the FastAPI backend — it serves the built frontend from
+`dist/` at http://127.0.0.1:8000. See the root README for full instructions.
+
+## Preview
+
+```bash
 npm run preview    # preview the production build
 ```

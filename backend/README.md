@@ -82,16 +82,32 @@ backend/
 
 ## Running
 
+The backend serves both the REST API and the built React frontend, so the
+complete application is available at a single URL.
+
+### Build the frontend first
+
+```bash
+cd frontend
+npm install
+npm run build          # generates frontend/dist/
+```
+
+### Run the backend
+
 ```bash
 cd backend
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8000
 ```
 
-The API is served at http://127.0.0.1:8000 — open
+Then open **http://127.0.0.1:8000** for the CeremonyGuard dashboard, or
 http://127.0.0.1:8000/docs for the interactive Swagger UI.
+
+If `frontend/dist/` does not exist, the backend runs as an API-only server
+and `GET /` returns a JSON info payload instead of the React app.
 
 ## Configuration
 

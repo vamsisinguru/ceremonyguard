@@ -1,4 +1,6 @@
-const BASE = "/api";
+// Use relative URLs so the frontend works when served by FastAPI on the same
+// origin (production build) or via the Vite dev-server proxy (development).
+const BASE = "";
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
