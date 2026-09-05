@@ -11,7 +11,7 @@ def test_app_starts(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "CeremonyGuard"
-    assert body["phase"] == "2"
+    assert body["phase"] == "3"
 
 
 def test_openapi_schema_available(client: TestClient) -> None:

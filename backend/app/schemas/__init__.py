@@ -109,6 +109,22 @@ class ContributionResponse(ORMBase):
     created_at: datetime
 
 
+class ContributionSubmissionResponse(BaseModel):
+    """Response for contribution submission covering all Phase 3 outcomes.
+
+    ``status`` is one of ``accepted``, ``duplicate``, or ``conflict``.
+    ``contribution`` is always the canonical (accepted) contribution.
+    ``submitted_hash`` is the SHA-256 hash of the current submission.
+    """
+
+    status: str
+    message: str
+    ceremony_id: int
+    participant_id: int
+    contribution: ContributionResponse
+    submitted_hash: str
+
+
 # --------------------------------------------------------------------------- #
 # AuditEvent
 # --------------------------------------------------------------------------- #

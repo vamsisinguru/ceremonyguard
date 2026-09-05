@@ -1,4 +1,4 @@
-"""Shared helpers for Phase 2 tests."""
+"""Shared helpers for Phase 2/3 tests."""
 
 from __future__ import annotations
 
@@ -32,8 +32,28 @@ def submit_contribution(
     participant_id: int,
     data: str = "sample-contribution-data",
 ) -> dict:
+    """Submit a contribution and return the full response body.
+
+    The response is a ``ContributionSubmissionResponse`` with fields:
+    ``status``, ``message``, ``ceremony_id``, ``participant_id``,
+    ``contribution`` (nested ``ContributionResponse``), ``submitted_hash``.
+    """
     response = client.post(
         f"/ceremonies/{ceremony_id}/attempts/{attempt_id}/contributions",
         json={"participant_id": participant_id, "contribution_data": data},
     )
     return response.json()
+
+
+def submit_contribution_raw(
+    client: TestClient,
+    ceremony_id: int,
+    attempt_id: int,
+    participant_id: int,
+    data: str = "sample-contribution-data",
+):
+    """Submit a contribution and return the raw ``Response`` object."""
+    return client.post(
+        f"/ceremonies/{ceremony_id}/attempts/{attempt_id}/contributions",
+        json={"participant_id": participant_id, "contribution_data": data},
+    )

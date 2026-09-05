@@ -1,16 +1,25 @@
 """Contribution REST API.
 
-Phase 2 only validates relationships and stores the contribution with a
-SHA-256 fingerprint. Duplicate/conflict detection is deferred to Phase 3.
+Phase 3 adds duplicate and conflict detection.  The submit endpoint returns
+a :class:`ContributionSubmissionResponse` whose ``status`` field is one of
+``accepted``, ``duplicate``, or ``conflict``.
+
+- ``accepted``  → HTTP 201 (first contribution)
+- ``duplicate`` → HTTP 200 (idempotent retry with identical data)
+- ``conflict``  → HTTP 409 (different data from the same participant)
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.schemas import ContributionCreate, ContributionResponse
+from app.schemas import (
+    ContributionCreate,
+    ContributionResponse,
+    ContributionSubmissionResponse,
+)
 from app.services import attempts as attempt_service
 from app.services import ceremonies as ceremony_service
 from app.services import contributions as contribution_service
@@ -21,16 +30,22 @@ router = APIRouter(tags=["contributions"])
 
 @router.post(
     "/ceremonies/{ceremony_id}/attempts/{attempt_id}/contributions",
-    response_model=ContributionResponse,
+    response_model=ContributionSubmissionResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Submit a contribution to a ceremony attempt",
+    responses={
+        201: {"description": "Contribution accepted"},
+        200: {"description": "Duplicate contribution detected"},
+        409: {"description": "Conflicting contribution detected"},
+    },
 )
 def submit_contribution(
     ceremony_id: int,
     attempt_id: int,
     payload: ContributionCreate,
+    response: Response,
     db: Session = Depends(get_db),
-) -> ContributionResponse:
+) -> ContributionSubmissionResponse:
     # 1. Ceremony must exist.
     if ceremony_service.get_ceremony(db, ceremony_id) is None:
         raise HTTPException(status_code=404, detail="Ceremony not found")
@@ -59,13 +74,27 @@ def submit_contribution(
             detail="Participant does not belong to the specified ceremony",
         )
 
-    contribution = contribution_service.submit_contribution(
+    result = contribution_service.submit_contribution(
         db,
         ceremony_id=ceremony_id,
         attempt_id=attempt_id,
         payload=payload,
     )
-    return ContributionResponse.model_validate(contribution)
+
+    # Override the default 201 status code for duplicate/conflict outcomes.
+    if result.status == "duplicate":
+        response.status_code = status.HTTP_200_OK
+    elif result.status == "conflict":
+        response.status_code = status.HTTP_409_CONFLICT
+
+    return ContributionSubmissionResponse(
+        status=result.status,
+        message=result.message,
+        ceremony_id=ceremony_id,
+        participant_id=payload.participant_id,
+        contribution=ContributionResponse.model_validate(result.canonical),
+        submitted_hash=result.submitted_hash,
+    )
 
 
 @router.get(
@@ -93,6 +122,22 @@ def list_contributions(
         for c in contribution_service.list_contributions_for_attempt(
             db, ceremony_id, attempt_id
         )
+    ]
+
+
+@router.get(
+    "/ceremonies/{ceremony_id}/contributions",
+    response_model=list[ContributionResponse],
+    summary="List all contributions for a ceremony",
+)
+def list_ceremony_contributions(
+    ceremony_id: int, db: Session = Depends(get_db)
+) -> list[ContributionResponse]:
+    if ceremony_service.get_ceremony(db, ceremony_id) is None:
+        raise HTTPException(status_code=404, detail="Ceremony not found")
+    return [
+        ContributionResponse.model_validate(c)
+        for c in contribution_service.list_contributions_for_ceremony(db, ceremony_id)
     ]
 
 

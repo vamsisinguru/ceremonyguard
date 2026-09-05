@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -86,9 +86,25 @@ class CeremonyAttempt(Base):
 
 
 class Contribution(Base):
-    """A participant's contribution within a specific ceremony attempt."""
+    """A participant's contribution within a specific ceremony attempt.
+
+    The ``status`` column distinguishes the canonical contribution
+    (``accepted``) from rejected retries (``duplicate`` or ``conflict``).
+    A partial unique index ensures at most one ``accepted`` contribution per
+    (ceremony, participant) pair, enforcing the one-canonical-contribution
+    rule at the database level.
+    """
 
     __tablename__ = "contributions"
+    __table_args__ = (
+        Index(
+            "ix_contributions_canonical",
+            "ceremony_id",
+            "participant_id",
+            unique=True,
+            sqlite_where=text("status = 'accepted'"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ceremony_id: Mapped[int] = mapped_column(

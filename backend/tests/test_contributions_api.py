@@ -29,13 +29,15 @@ def test_submit_contribution(client: TestClient) -> None:
     )
     assert response.status_code == 201
     body = response.json()
-    assert body["id"] > 0
-    assert body["ceremony_id"] == ceremony["id"]
-    assert body["attempt_id"] == attempt["id"]
-    assert body["participant_id"] == participant["id"]
-    assert body["contribution_data"] == "hello"
     assert body["status"] == "accepted"
-    assert body["created_at"]
+    contrib = body["contribution"]
+    assert contrib["id"] > 0
+    assert contrib["ceremony_id"] == ceremony["id"]
+    assert contrib["attempt_id"] == attempt["id"]
+    assert contrib["participant_id"] == participant["id"]
+    assert contrib["contribution_data"] == "hello"
+    assert contrib["status"] == "accepted"
+    assert contrib["created_at"]
 
 
 def test_contribution_sha256_hash_is_correct(client: TestClient) -> None:
@@ -44,11 +46,13 @@ def test_contribution_sha256_hash_is_correct(client: TestClient) -> None:
         client, ceremony["id"], attempt["id"], participant["id"], "hello"
     )
     expected = hashlib.sha256(b"hello").hexdigest()
-    assert body["contribution_hash"] == expected
-    assert len(body["contribution_hash"]) == 64
+    assert body["submitted_hash"] == expected
+    assert body["contribution"]["contribution_hash"] == expected
+    assert len(body["submitted_hash"]) == 64
 
 
 def test_contribution_hash_is_deterministic(client: TestClient) -> None:
+    """Same data produces the same hash; second submission is a duplicate."""
     ceremony, participant, attempt = _setup_ceremony_with_participant_and_attempt(client)
     b1 = submit_contribution(
         client, ceremony["id"], attempt["id"], participant["id"], "same-data"
@@ -56,7 +60,10 @@ def test_contribution_hash_is_deterministic(client: TestClient) -> None:
     b2 = submit_contribution(
         client, ceremony["id"], attempt["id"], participant["id"], "same-data"
     )
-    assert b1["contribution_hash"] == b2["contribution_hash"]
+    # Both submissions have the same hash (b2 is a duplicate of b1).
+    assert b1["submitted_hash"] == b2["submitted_hash"]
+    # The canonical contribution hash matches.
+    assert b1["contribution"]["contribution_hash"] == b2["contribution"]["contribution_hash"]
 
 
 def test_get_contribution(client: TestClient) -> None:
@@ -64,9 +71,10 @@ def test_get_contribution(client: TestClient) -> None:
     created = submit_contribution(
         client, ceremony["id"], attempt["id"], participant["id"], "payload"
     )
-    response = client.get(f"/contributions/{created['id']}")
+    contribution_id = created["contribution"]["id"]
+    response = client.get(f"/contributions/{contribution_id}")
     assert response.status_code == 200
-    assert response.json() == created
+    assert response.json() == created["contribution"]
 
 
 def test_get_contribution_not_found(client: TestClient) -> None:
