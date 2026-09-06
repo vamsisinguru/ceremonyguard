@@ -14,6 +14,7 @@ from app.api.audit import router as audit_router
 from app.api.ceremonies import router as ceremonies_router
 from app.api.contributions import router as contributions_router
 from app.api.health import router as health_router
+from app.api.monitoring import router as monitoring_router
 from app.api.participants import router as participants_router
 from app.api.recovery import router as recovery_router
 from app.api.verification import router as verification_router
@@ -51,6 +52,7 @@ app.include_router(contributions_router)
 app.include_router(audit_router)
 app.include_router(recovery_router)
 app.include_router(verification_router)
+app.include_router(monitoring_router)
 
 # Mount static frontend assets (JS/CSS) if the build exists.
 if _FRONTEND_ASSETS.is_dir():

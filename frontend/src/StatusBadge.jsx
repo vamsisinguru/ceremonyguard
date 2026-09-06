@@ -9,6 +9,15 @@ const STATUS_STYLES = {
   verification_failed: "bg-red-500/20 text-red-300 border-red-500/40",
   not_generated: "bg-slate-500/20 text-slate-300 border-slate-500/40",
   not_ready: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+  // Smart Monitoring statuses
+  healthy: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+  action_required: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+  conflict_requires_attention: "bg-red-500/20 text-red-300 border-red-500/40",
+  missing: "bg-amber-500/20 text-amber-300 border-amber-500/40",
+  recovered: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
+  failed: "bg-red-500/20 text-red-300 border-red-500/40",
+  not_safe: "bg-red-500/20 text-red-300 border-red-500/40",
+  not_needed: "bg-slate-500/20 text-slate-300 border-slate-500/40",
 };
 
 const DEFAULT_STYLE = "bg-slate-500/20 text-slate-300 border-slate-500/40";

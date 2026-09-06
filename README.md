@@ -162,6 +162,117 @@ yet.
   resume form) and Final Verification section (readiness, canonical
   contributions, finalize/verify actions, verification result).
 
+### Usability Enhancements — Ceremony Timeline & "Why Rejected?"
+These are application-level usability and traceability enhancements. They are
+**not** part of the underlying cryptographic protocol.
+
+- **Ceremony Timeline**: a frontend visualization of the existing audit trail
+  (`GET /ceremonies/{id}/audit`). It renders the complete history of a
+  selected ceremony in chronological order with human-readable titles
+  (e.g. "Ceremony Created", "Contribution Accepted", "Duplicate Contribution",
+  "Recovery Started", "Final Verification Succeeded") and clear status
+  indicators (`✓ ACCEPTED`, `⚠ DUPLICATE`, `✕ CONFLICT`, `↻ RECOVERY`,
+  `✓ VERIFIED`). Filters: All Events, Contributions, Problems, Recovery,
+  Verification. The timeline does **not** duplicate audit records — it only
+  reads them.
+- **"Why Rejected?" explanation**: when a contribution is `duplicate` or
+  `conflict`, the contribution form shows an expandable "Why was this not
+  accepted?" section. It displays the participant, original contribution ID,
+  rejected submission ID, original and submitted SHA-256 fingerprints, whether
+  the fingerprints match, and the decision. The explanation distinguishes
+  DUPLICATE (same fingerprint) from CONFLICT (different fingerprint) and
+  always notes that the original canonical contribution is retained. The data
+  comes from the existing contribution submission response, extended with
+  optional backward-compatible fields: `original_contribution_id`,
+  `submitted_contribution_id`, `original_hash`, and `reason`.
+
+### Smart Ceremony Monitoring & Automatic Recovery
+
+CeremonyGuard is a **simulated/educational** cryptographic ceremony system.
+The Smart Monitoring feature makes it actively monitor ceremony state and
+safely recover contribution-submission problems.
+
+**Core principle:** "Never lose a valid contribution because of a temporary
+connection failure, and never guess when the system cannot safely recover."
+
+**Why this feature exists:** In a multi-party ceremony, participants submit
+contributions over a network. If a submission response is lost (timeout,
+connection interruption), the participant does not know whether their
+contribution was received. Naively retrying could create duplicate or
+conflicting contributions. Smart Monitoring solves this with idempotent
+submission keys and automatic recovery.
+
+**What it monitors (server-side ceremony state, NOT physical Wi-Fi):**
+- Ceremony status (active, recovering, etc.)
+- Required participant count vs. accepted canonical contribution count
+- Missing/incomplete participants
+- Unresolved submissions (via submission key lookup)
+- Duplicate/conflict events
+- Recovery state
+- Final verification state
+
+**What it can automatically recover:**
+- If a submission was already accepted but the response was lost, the system
+  confirms the existing contribution without creating a new one.
+- If a submission never reached the server, the system safely retries the
+  same logical submission (using the same idempotency key).
+
+**What it cannot recover:**
+- Conflicting contributions (different data from the same participant). The
+  original is preserved and manual action is required.
+- Situations where the state cannot be safely determined. The system stops
+  and generates a manual-action report.
+
+**Why idempotent retry prevents duplicate canonical contributions:** Each
+submission includes an optional `submission_key`. The server records this key
+and maps it to the resulting contribution. If the same key is submitted again,
+the original result is returned without creating a new contribution. This
+means a lost response does not lead to a second canonical contribution.
+
+**Why the system does not claim to detect physical network failure:** The
+system can only observe application-level conditions (request timeout,
+connection interruption at the HTTP layer, submission confirmation not
+received, unresolved submission state). It cannot determine whether a
+participant's Wi-Fi or mobile signal failed. The UI uses wording like
+"Connection interrupted" or "Submission confirmation was not received."
+
+**What happens when automatic recovery is impossible:** The system generates
+an incident report with manual recovery steps:
+1. Verify participant identity.
+2. Check ceremony status.
+3. Check whether a canonical contribution exists.
+4. Resume the participant's ceremony attempt.
+5. Submit only if no canonical contribution exists.
+6. Run final verification.
+
+**New endpoints:**
+- `GET  /ceremonies/{ceremony_id}/monitor` — overall ceremony monitoring status.
+- `GET  /ceremonies/{ceremony_id}/submissions/{submission_key}/status` —
+  submission status lookup by idempotency key.
+- `POST /ceremonies/{ceremony_id}/recovery/report` — generate an
+  incident/recovery report for a participant.
+
+**New audit events:**
+- `SUBMISSION_RECOVERY_STARTED`
+- `SUBMISSION_STATUS_CHECKED`
+- `SUBMISSION_ALREADY_ACCEPTED`
+- `SUBMISSION_RETRY_ACCEPTED`
+- `SUBMISSION_RECOVERY_FAILED`
+- `MANUAL_ACTION_REQUIRED`
+
+**Frontend additions:**
+- **Ceremony Monitor** section: shows per-participant submission state
+  (accepted, missing, recovering, conflict, duplicate) and overall ceremony
+  health (healthy, incomplete, recovering, conflict_requires_attention,
+  verification_failed). Includes a recovery report generator.
+- **Auto-recovery in ContributionForm**: when a submission times out or the
+  response is lost, the form automatically checks the submission status and
+  either confirms the existing contribution or safely retries. The
+  participant sees clear messages like "Connection interrupted. Checking
+  submission status..." and "Your contribution was already accepted."
+- **Timeline integration**: all monitoring/recovery events appear in the
+  existing Ceremony Timeline automatically.
+
 ## Contribution Statuses
 
 | Status      | Meaning                                                        | HTTP |

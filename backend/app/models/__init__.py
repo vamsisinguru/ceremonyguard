@@ -175,3 +175,46 @@ class CeremonyResult(Base):
     )
 
     ceremony: Mapped["Ceremony"] = relationship()
+
+
+class SubmissionRecord(Base):
+    """Tracks a logical (idempotent) contribution submission.
+
+    When a participant submits a contribution with a ``submission_key``, a
+    record is stored mapping that key to the resulting contribution.  If the
+    same key is submitted again (e.g. after a lost response), the existing
+    result is returned instead of creating a new contribution.
+
+    This enables safe retries: the client can re-send the same logical
+    submission without risk of creating a duplicate canonical contribution.
+    """
+
+    __tablename__ = "submission_records"
+    __table_args__ = (
+        Index(
+            "ix_submission_records_ceremony_key",
+            "ceremony_id",
+            "submission_key",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ceremony_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("ceremonies.id", ondelete="CASCADE"), nullable=False
+    )
+    participant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("participants.id", ondelete="CASCADE"), nullable=False
+    )
+    attempt_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("ceremony_attempts.id", ondelete="CASCADE"), nullable=False
+    )
+    submission_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    contribution_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("contributions.id", ondelete="CASCADE"), nullable=False
+    )
+    submission_status: Mapped[str] = mapped_column(String(64), nullable=False)
+    submitted_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.current_timestamp()
+    )

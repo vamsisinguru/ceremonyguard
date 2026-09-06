@@ -47,7 +47,7 @@ export const api = {
   // Contributions
   listContributions: (ceremonyId) =>
     request(`/ceremonies/${ceremonyId}/contributions`),
-  submitContribution: (ceremonyId, attemptId, participantId, data) =>
+  submitContribution: (ceremonyId, attemptId, participantId, data, submissionKey) =>
     request(
       `/ceremonies/${ceremonyId}/attempts/${attemptId}/contributions`,
       {
@@ -55,6 +55,7 @@ export const api = {
         body: JSON.stringify({
           participant_id: participantId,
           contribution_data: data,
+          ...(submissionKey ? { submission_key: submissionKey } : {}),
         }),
       },
     ),
@@ -84,4 +85,21 @@ export const api = {
     request(`/ceremonies/${ceremonyId}/finalize`, { method: "POST" }),
   verifyCeremony: (ceremonyId) =>
     request(`/ceremonies/${ceremonyId}/verify`, { method: "POST" }),
+
+  // Smart Monitoring
+  getMonitor: (ceremonyId) =>
+    request(`/ceremonies/${ceremonyId}/monitor`),
+  getSubmissionStatus: (ceremonyId, submissionKey) =>
+    request(
+      `/ceremonies/${ceremonyId}/submissions/${encodeURIComponent(submissionKey)}/status`,
+    ),
+  generateRecoveryReport: (ceremonyId, participantId, submissionKey, contributionData) =>
+    request(`/ceremonies/${ceremonyId}/recovery/report`, {
+      method: "POST",
+      body: JSON.stringify({
+        participant_id: participantId,
+        ...(submissionKey ? { submission_key: submissionKey } : {}),
+        ...(contributionData ? { contribution_data: contributionData } : {}),
+      }),
+    }),
 };

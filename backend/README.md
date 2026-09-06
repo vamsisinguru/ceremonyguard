@@ -161,9 +161,17 @@ The submit endpoint returns a `ContributionSubmissionResponse`:
   "ceremony_id": 1,
   "participant_id": 1,
   "contribution": { "id": 1, "status": "accepted", "contribution_hash": "...", ... },
-  "submitted_hash": "<sha256 of submitted data>"
+  "submitted_hash": "<sha256 of submitted data>",
+  "original_contribution_id": 1,
+  "submitted_contribution_id": 5,
+  "original_hash": "<sha256 of canonical contribution>",
+  "reason": "<human-readable rejection reason>"
 }
 ```
+
+The last four fields are optional and backward-compatible: they are `null` for
+`accepted` submissions and populated only for `duplicate`/`conflict` outcomes.
+They support the frontend "Why was this not accepted?" explanation.
 
 | Outcome     | HTTP | Meaning                                                       |
 |-------------|------|---------------------------------------------------------------|
@@ -192,6 +200,11 @@ A public read-only audit endpoint is available:
 |--------|-----------------------------------|----------------------------------|
 | GET    | `/ceremonies/{ceremony_id}/audit` | List audit events for a ceremony |
 
+The frontend **Ceremony Timeline** is a visualization of this endpoint — it
+renders the same audit events in chronological order with human-readable
+titles and status indicators. It does not create a second event-history
+system or duplicate audit records.
+
 ### Recovery (Phase 4)
 | Method | Path                                        | Description                              |
 |--------|---------------------------------------------|------------------------------------------|
@@ -217,6 +230,39 @@ The verification response (`FinalResultResponse`) includes:
 - `verification_status`: `verified` | `verification_failed` | `not_generated` | `not_ready`
 - `final_digest`, `contribution_digest`, `participant_count`
 - `canonical_contributions`: list with participant IDs/names, contribution IDs, hashes, attempt IDs
+
+### Smart Ceremony Monitoring & Automatic Recovery
+
+The contribution submit endpoint accepts an optional `submission_key` field
+for idempotent retries. When the same key is submitted again, the original
+result is returned without creating a new contribution.
+
+| Method | Path                                                        | Description                              |
+|--------|-------------------------------------------------------------|------------------------------------------|
+| GET    | `/ceremonies/{ceremony_id}/monitor`                         | Get ceremony monitoring status           |
+| GET    | `/ceremonies/{ceremony_id}/submissions/{submission_key}/status` | Check submission status by key     |
+| POST   | `/ceremonies/{ceremony_id}/recovery/report`                 | Generate a recovery/incident report      |
+
+The monitor endpoint returns a `CeremonyMonitorResponse` with:
+- `monitor_status`: `healthy` | `incomplete` | `recovering` |
+  `conflict_requires_attention` | `verification_failed` | `not_ready`
+- Per-participant status (`accepted`, `missing`, `recovering`, `conflict`, `duplicate`)
+- Counts of incomplete, conflict, and duplicate records
+- Final result/verification state
+
+The recovery report endpoint returns a `RecoveryReportResponse` with:
+- `recovery_status`: `recovered` | `not_safe` | `failed` | `not_needed`
+- `issue`, `detected_state`, `automatic_action`
+- `duplicate_created`, `canonical_contribution_changed`
+- `manual_steps` (when recovery is not safe)
+
+New audit events: `SUBMISSION_RECOVERY_STARTED`,
+`SUBMISSION_STATUS_CHECKED`, `SUBMISSION_ALREADY_ACCEPTED`,
+`SUBMISSION_RETRY_ACCEPTED`, `SUBMISSION_RECOVERY_FAILED`,
+`MANUAL_ACTION_REQUIRED`.
+
+New model: `SubmissionRecord` tracks the mapping from `submission_key` to
+the resulting contribution for idempotent retries.
 
 ## Example API Workflow
 

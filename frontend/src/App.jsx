@@ -4,6 +4,8 @@ import StatusBadge from "./StatusBadge.jsx";
 import ContributionForm from "./ContributionForm.jsx";
 import RecoverySection from "./RecoverySection.jsx";
 import FinalVerificationSection from "./FinalVerificationSection.jsx";
+import CeremonyTimeline from "./CeremonyTimeline.jsx";
+import CeremonyMonitor from "./CeremonyMonitor.jsx";
 
 export default function App() {
   const [health, setHealth] = useState(null);
@@ -320,6 +322,12 @@ export default function App() {
               </div>
             </section>
 
+            {/* Smart Monitoring — Ceremony Monitor */}
+            <CeremonyMonitor
+              ceremonyId={selectedCeremony.id}
+              onUpdated={refresh}
+            />
+
             {/* Phase 4 — Recovery */}
             <RecoverySection
               ceremonyId={selectedCeremony.id}
@@ -332,6 +340,13 @@ export default function App() {
               ceremonyId={selectedCeremony.id}
               verification={verification}
               onUpdated={refresh}
+            />
+
+            {/* Ceremony Timeline (visualization of the audit trail) */}
+            <CeremonyTimeline
+              auditEvents={auditEvents}
+              participants={participants}
+              attempts={attempts}
             />
 
             {/* Audit trail */}

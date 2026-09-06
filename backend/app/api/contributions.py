@@ -87,6 +87,30 @@ def submit_contribution(
     elif result.status == "conflict":
         response.status_code = status.HTTP_409_CONFLICT
 
+    # Populate the optional "Why rejected?" fields for duplicate/conflict.
+    original_contribution_id = None
+    submitted_contribution_id = None
+    original_hash = None
+    reason = None
+    if result.status in ("duplicate", "conflict"):
+        original_contribution_id = result.canonical.id
+        original_hash = result.canonical.contribution_hash
+        if result.submitted_record is not None:
+            submitted_contribution_id = result.submitted_record.id
+        if result.status == "duplicate":
+            reason = (
+                "This participant already submitted a contribution with the "
+                "same SHA-256 fingerprint for this ceremony. The original "
+                "contribution remains canonical."
+            )
+        else:
+            reason = (
+                "This participant already has a canonical contribution, but "
+                "the new submission contains different data (different "
+                "SHA-256 fingerprint). The original contribution remains "
+                "canonical and the new submission was rejected."
+            )
+
     return ContributionSubmissionResponse(
         status=result.status,
         message=result.message,
@@ -94,6 +118,10 @@ def submit_contribution(
         participant_id=payload.participant_id,
         contribution=ContributionResponse.model_validate(result.canonical),
         submitted_hash=result.submitted_hash,
+        original_contribution_id=original_contribution_id,
+        submitted_contribution_id=submitted_contribution_id,
+        original_hash=original_hash,
+        reason=reason,
     )
 
 

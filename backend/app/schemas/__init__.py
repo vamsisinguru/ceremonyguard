@@ -96,6 +96,10 @@ class ContributionBase(BaseModel):
 class ContributionCreate(BaseModel):
     participant_id: int
     contribution_data: str = Field(..., min_length=1)
+    # Optional idempotency key for safe retries (Smart Monitoring feature).
+    # When provided, a duplicate submission with the same key returns the
+    # original result instead of creating a new contribution record.
+    submission_key: str | None = Field(None, max_length=128)
 
 
 class ContributionResponse(ORMBase):
@@ -115,6 +119,13 @@ class ContributionSubmissionResponse(BaseModel):
     ``status`` is one of ``accepted``, ``duplicate``, or ``conflict``.
     ``contribution`` is always the canonical (accepted) contribution.
     ``submitted_hash`` is the SHA-256 hash of the current submission.
+
+    The following optional fields support the "Why rejected?" explanation
+    for duplicate/conflict outcomes and are ``None`` for accepted submissions:
+    ``original_contribution_id``  — id of the retained canonical contribution,
+    ``submitted_contribution_id`` — id of the rejected duplicate/conflict record,
+    ``original_hash``             — SHA-256 of the canonical contribution,
+    ``reason``                    — short human-readable rejection reason.
     """
 
     status: str
@@ -123,6 +134,11 @@ class ContributionSubmissionResponse(BaseModel):
     participant_id: int
     contribution: ContributionResponse
     submitted_hash: str
+    # Optional, backward-compatible fields for the "Why rejected?" explanation.
+    original_contribution_id: int | None = None
+    submitted_contribution_id: int | None = None
+    original_hash: str | None = None
+    reason: str | None = None
 
 
 # --------------------------------------------------------------------------- #
@@ -246,3 +262,82 @@ class FinalResultResponse(BaseModel):
     canonical_contributions: list[CanonicalContributionInfo]
     message: str
     created_at: datetime | None = None
+
+
+# --------------------------------------------------------------------------- #
+# Smart Ceremony Monitoring & Automatic Recovery
+# --------------------------------------------------------------------------- #
+class SubmissionStatusResponse(BaseModel):
+    """Status of a logical submission identified by its submission key."""
+
+    ceremony_id: int
+    submission_key: str
+    status: str  # ACCEPTED | NOT_FOUND | DUPLICATE | CONFLICT | UNKNOWN
+    contribution_id: int | None = None
+    participant_id: int | None = None
+    attempt_id: int | None = None
+    contribution_hash: str | None = None
+    message: str
+
+
+class ParticipantMonitorStatus(BaseModel):
+    """Per-participant monitoring status within a ceremony."""
+
+    participant_id: int
+    participant_name: str
+    has_canonical: bool
+    contribution_id: int | None = None
+    attempt_id: int | None = None
+    # One of: accepted | missing | recovering | conflict | duplicate
+    submission_state: str
+    issues: list[str] = []
+
+
+class CeremonyMonitorResponse(BaseModel):
+    """Overall ceremony monitoring status."""
+
+    ceremony_id: int
+    ceremony_name: str
+    ceremony_status: str
+    # One of: healthy | action_required | recovering | incomplete |
+    # conflict_requires_attention | verification_failed | not_ready
+    monitor_status: str
+    total_participants: int
+    participants_with_contribution: int
+    incomplete_count: int
+    conflict_count: int
+    duplicate_count: int
+    has_final_result: bool
+    verified: bool | None = None
+    participants: list[ParticipantMonitorStatus]
+    issues: list[str]
+    message: str
+
+
+class RecoveryReportRequest(BaseModel):
+    """Request to generate a recovery/incident report for a participant."""
+
+    participant_id: int
+    submission_key: str | None = None
+    contribution_data: str | None = Field(None, min_length=1)
+
+
+class RecoveryReportResponse(BaseModel):
+    """Incident/recovery report for an unresolved submission."""
+
+    ceremony_id: int
+    ceremony_name: str
+    participant_id: int
+    participant_name: str
+    attempt_id: int | None = None
+    issue: str
+    detected_state: str
+    automatic_action: str
+    recovery_status: str  # recovered | failed | not_safe | not_needed
+    duplicate_created: bool
+    canonical_contribution_changed: bool
+    ceremony_ready: bool
+    contribution_id: int | None = None
+    contribution_hash: str | None = None
+    manual_steps: list[str] = []
+    message: str
